@@ -3,7 +3,7 @@ from tkinter import *
 from random import random
 
 N = 80
-iterations = 80
+iterations = 40
 
 scale = 4
 offset = 400
@@ -44,31 +44,45 @@ cells = [[0]*N for _ in range(N)]
 next_cells = [[0]*N for _ in range(N)]
 cells[0][0] = 1
 
-def get_neighbor_sum(i, j):
+
+#           05  15  25  35  45  55
+#         04  14  24  34  44  45
+#       03  13  23  33  34  35
+#     02  12  22  23 -24- 25
+#   01  11  12  13  14  15
+# 00  01  02  03  04  05
+
+def get_neighbors(i, j):
     s = 0
-    if i==0 and j==0:
-        return cells[0][1]*6
-    if i==0 and j==1:
-        return cells[0][0] + 2*cells[0][1] + 2*cells[1][1] + cells[2][0]
+    if (i, j) == (0, 0):
+        return [0, 63][cells[0][1]]
+    if (i, j) == (0, 1):
+        return 32*cells[0][0] + 17*cells[0][1] + 10*cells[1][1] + 4*cells[0][2]
     if i==0:
-        return cells[0][j-1] + 2*cells[1][j-1] + 2*cells[1][j] + cells[0][j+1]
+        return 32*cells[0][j-1] + 17*cells[1][j-1] + 10*cells[1][j] + 4*cells[0][j+1]
     if i==j:
-        return 2*(cells[i-1][j] + cells[i-1][j+1] + cells[i][j+1])
+        return 33*cells[i-1][j] + 18*cells[i-1][j+1] + 12*cells[i][j+1]
     if i==j-1:
-        return (cells[i][j] + cells[i][j-1] + cells[i-1][j] +
-                cells[i-1][j+1] + cells[i][j+1] + cells[i+1][j])
-    return (cells[i][j-1] + cells[i-1][j] + cells[i-1][j+1] +
-            cells[i][j+1] + cells[i+1][j] + cells[i+1][j-1])
+        return (32*cells[i][j-1] + 16*cells[i][j] + 8*cells[i+1][j] +
+                4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
+    return (32*cells[i][j-1] + 16*cells[i-1][j-1] + 8*cells[i-1][j] +
+            4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
 
 # (current_state, sum_neighbor_states): prob
-rules = {
-        (0,0): 0.0, (1,0): 1.0,
-        (0,1): random(), (1,1): random(),
-        (0,2): random(), (1,2): random(),
-        (0,3): random(), (1,3): random(),
-        (0,4): random(), (1,4): random(),
-        (0,5): random(), (1,5): random(),
-        (0,6): random(), (1,6): random()}
+rules = [[None]*64, [None]*64]
+for i in range(64):
+    if rules[0][i] is not None: continue
+    r = random()
+    for _ in range(6):
+        rules[0][i] = r**2
+        i = (i>>1) + ((i&1)<<5)
+    r = random()
+    for _ in range(6):
+        rules[1][i] = r**0.5
+        i = (i>>1) + ((i&1)<<5)
+
+rules[0][0] = 0
+rules[1][0] = 1
 
 print(rules)
 
@@ -76,7 +90,7 @@ for _ in range(iterations):
     for i, r in enumerate(cells[:-1]):
         for j, c in enumerate(r[:-1]):
             next_cells[i][j] = 0
-            if random() < rules[(cells[i][j], get_neighbor_sum(i,j))]:
+            if random() < rules[cells[i][j]][get_neighbors(i,j)]:
                 next_cells[i][j] = 1
     cells, next_cells = next_cells, cells
 
