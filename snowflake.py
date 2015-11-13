@@ -3,7 +3,7 @@ from tkinter import *
 from random import random
 
 N = 80
-iterations = 40
+iterations = 20
 
 scale = 4
 offset = 400
@@ -72,11 +72,14 @@ def get_neighbors(i, j):
 rules = [[None]*64, [None]*64]
 for i in range(64):
     if rules[0][i] is not None: continue
-    r = random()
+    r = {0:0, 1:1, 3:0.2, 5:.1, 7:0, 9:0.2, 11:0.1, 13:0.1, 15:0, 21:.1,
+            23:0.1, 27:1, 31:1, 63:0}[i]
     for _ in range(6):
         rules[0][i] = r**2
         i = (i>>1) + ((i&1)<<5)
-    r = random()
+    r = {0:1, 1:1, 3:0.3, 5:0.5, 7:0.5, 9:1, 11:1, 13:1, 15:0.7, 21:0.5, 23:1,
+            27:0.8, 31:0.9, 63:1}[i]
+
     for _ in range(6):
         rules[1][i] = r**0.5
         i = (i>>1) + ((i&1)<<5)
