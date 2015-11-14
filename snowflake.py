@@ -111,19 +111,45 @@ def get_neighbors(i, j):
 rules = [[None]*64, [None]*64]
 for i in range(64):
   if rules[0][i] is not None: continue
-  r = {0:0, 1:1, 3:0.2, 5:.1, 7:0, 9:0.2, 11:0.1, 13:0.1, 15:0, 21:.1,
-      23:0.1, 27:1, 31:1, 63:0}[i]
-  for _ in range(6):
-    rules[0][i] = r**2
-    i = (i>>1) + ((i&1)<<5)
-  r = {0:1, 1:1, 3:0.3, 5:0.5, 7:0.5, 9:1, 11:1, 13:1, 15:0.7, 21:0.5, 23:1,
-      27:0.8, 31:0.9, 63:1}[i]
 
-  for _ in range(6):
-    rules[1][i] = r**0.5
-    i = (i>>1) + ((i&1)<<5)
+  #  . .    . .    o .    . o    o o    . .    o .
+  # .   .  o   .  o   .  o   .  o   .  o   o  o   o
+  #  . .    . .    . .    . .    . .    . .    . .
+  #   0      1      3      5      7      9      11
+  #
+  #  . o    o o    . o    o o    o .    o o    o o
+  # o   o  o   o  o   .  o   .  o   o  o   o  o   o
+  #  . .    . .    . o    . o    . o    . o    o o
+  #   13     15     21     23     27     31     63
 
-print(rules)
+  # freezing probability
+
+  r = {
+       0:0.0,  13:0.1,
+       1:1.0,  15:0.0,
+       3:0.4,  21:0.1,
+       5:0.1,  23:0.4,
+       7:0.0,  27:0.7,
+       9:0.6,  31:0.9,
+      11:0.1,  63:0.4
+      }
+  ii = i
+  for _ in range(6):
+    rules[0][ii] = r[i]
+    ii = (ii>>1) + ((ii&1)<<5)
+  # not-thawing probabilities
+  r = {
+       0:1.0,  13:1.0,
+       1:1.0,  15:0.7,
+       3:0.3,  21:0.5,
+       5:0.4,  23:0.7,
+       7:0.2,  27:0.8,
+       9:1.0,  31:0.3,
+      11:1.0,  63:0.7
+      }
+  for _ in range(6):
+    rules[1][ii] = r[i]
+    ii = (ii>>1) + ((ii&1)<<5)
 
 for _ in range(iterations):
   for i, r in enumerate(cells[:-1]):
