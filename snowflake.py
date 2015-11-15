@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from tkinter import *
-from random import random
+from random import random, randrange, randint
 
 N = 200
 iterations = 40
@@ -91,7 +91,7 @@ cells = [[0]*N for _ in range(N)]
 next_cells = [[0]*N for _ in range(N)]
 cells[0][0] = 1
 
-def get_neighbors(i, j):
+def get_neighbor_state(i, j):
   s = 0
   if (i, j) == (0, 0):
     return [0, 63][cells[0][1]]
@@ -103,9 +103,31 @@ def get_neighbors(i, j):
     return 33*cells[i-1][j] + 18*cells[i-1][j+1] + 12*cells[i][j+1]
   if i==j-1:
     return (32*cells[i][j-1] + 16*cells[i][j] + 8*cells[i+1][j] +
-        4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
+            4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
   return (32*cells[i][j-1] + 16*cells[i-1][j-1] + 8*cells[i-1][j] +
-      4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
+          4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
+
+def grow(i, j):
+  if cells[i][j] == 0: return ({}, 0)
+  flake = set()
+  boundary = {(i, j)}
+  size = 0
+
+  while len(boundary) > 0:
+    (i, j) = boundary.pop()
+    if (i, j) in flake: continue
+
+    flake.add((i, j))
+    if (i, j) == (0, 0): size += 1
+    elif i == 0: size += 6
+    elif i == j: size += 6
+    else: size += 12
+
+    for (ni, nj) in neighbors(i, j):
+      if cells[ni][nj] > 0 and (ni, nj) not in flake:
+        boundary.add((ni, nj))
+
+  return (flake, size)
 
 # (current_state, sum_neighbor_states): prob
 rules = [[None]*64, [None]*64]
@@ -156,7 +178,7 @@ for _ in range(iterations):
     for j, c in enumerate(r[:-1]):
       next_cells[i][j] = 0
       if shape=="hexagon" and i+j>=N/4: continue
-      if random() < rules[cells[i][j]][get_neighbors(i,j)]:
+      if random() < rules[cells[i][j]][get_neighbor_state(i,j)]:
         next_cells[i][j] = 1
   cells, next_cells = next_cells, cells
 
@@ -167,5 +189,17 @@ for i, r in enumerate(cells):
         if not cells[ni][nj]:
           draw_border(i, j, ni, nj)
 
+max_size = 0
+max_flake = None
+while max_size < N**2/16:
+  j = randrange(N)
+  i = randint(0,j)
+  (flake, size) = grow(i, j)
+  if size > max_size:
+    max_flake = flake
+    max_size = size
+
+for (i, j) in flake:
+  draw_cell(i, j)
 
 mainloop()
