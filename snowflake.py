@@ -5,8 +5,8 @@ from random import random, randrange, randint
 N = 200
 iterations = 40
 
-#shape="star"
-shape="hexagon"
+shape="star"
+#shape="hexagon"
 
 scale = 4
 offset = 400
@@ -63,14 +63,22 @@ def hex_to_cube(h):
 
 def draw_point(x, y):
   w.create_oval(t(x)+scale/3, t(-y)+scale/3, t(x)-scale/3, t(-y)-scale/3,
-      outline="white", fill="#aaaaff")
+      outline="#aaaaff", fill="#aaaaff")
 
 def draw_cell(i, j):
+  draw_point(j + i/2, i*r3/2)
+
+def draw_cells(i, j):
   if i>j: return
   for (ii, jj) in ((i, j), (j, i), (-i-j, i)):
     for xm in (-1, 1):
       for ym in (-1, 1):
         draw_point(xm*(jj+ii/2), ym*ii*r3/2)
+
+def draw_edge(edge):
+  ((i1, j1), (i2, j2)) = edge
+  w.create_line(t(j1 + i1/2 + 1/2), t((i1-1/3)*r3/2),
+      t(j2 + i2/2 + 1/2), t((i2+1/3)*r3/2))
 
 def draw_border(i1, j1, i2, j2):
   for (ii1, jj1, ii2, jj2) in ((i1, j1, i2, j2), (j1, i1, j2, i2), (-i1-j1, i1, -i2-j2, i2)):
@@ -182,16 +190,17 @@ for _ in range(iterations):
         next_cells[i][j] = 1
   cells, next_cells = next_cells, cells
 
-for i, r in enumerate(cells):
-  for j, c in enumerate(r):
-    for ni, nj in neighbors(i, j):
-      if c:
-        if not cells[ni][nj]:
-          draw_border(i, j, ni, nj)
+#for i, r in enumerate(cells):
+#  for j, c in enumerate(r):
+#    for ni, nj in neighbors(i, j):
+#      if c:
+#        if not cells[ni][nj]:
+#          draw_border(i, j, ni, nj)
 
 max_size = 0
 max_flake = None
-while max_size < N**2/16:
+total_c = sum(map(sum, cells))
+while max_size < total_c:
   j = randrange(N)
   i = randint(0,j)
   (flake, size) = grow(i, j)
@@ -199,7 +208,41 @@ while max_size < N**2/16:
     max_flake = flake
     max_size = size
 
+full_flake = set()
 for (i, j) in flake:
-  draw_cell(i, j)
+  draw_cells(i, j)
+  full_flake.add((i, j))
+  full_flake.add((-i, -j))
+  full_flake.add((-j-i, i))
+  full_flake.add((j+i, -i))
+  full_flake.add((j, -j-i))
+  full_flake.add((-j, j+i))
+  full_flake.add((j, i))
+  full_flake.add((-j, -i))
+  full_flake.add((-i-j, j))
+  full_flake.add((i+j, -j))
+  full_flake.add((i, -i-j))
+  full_flake.add((-i, i+j))
+
+flake_border = set()
+for (i, j) in full_flake:
+  for (ni, nj) in ((i, j+1), (i, j-1), (i+1, j), (i-1, j), (i+1, j-1),
+      (i-1, j+1)):
+    if (ni, nj) in full_flake: continue
+    if (ni - i, nj - j) == (0, 1):
+      flake_border.add(((i, j), (i, j)))
+    if (ni - i, nj - j) == (1, 0):
+      flake_border.add(((i+1, j-1), (i, j)))
+    if (ni - i, nj - j) == (1, -1):
+      flake_border.add(((i+1, j-1), (i, j-1)))
+    if (ni - i, nj - j) == (0, -1):
+      flake_border.add(((i, j-1), (i, j-1)))
+    if (ni - i, nj - j) == (-1, 0):
+      flake_border.add(((i, j-1), (i-1, j)))
+    if (ni - i, nj - j) == (-1, 1):
+      flake_border.add(((i, j), (i-1, j)))
+
+for edge in flake_border:
+  draw_edge(edge)
 
 mainloop()
