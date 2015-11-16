@@ -3,13 +3,13 @@ from tkinter import *
 from dxfwrite import DXFEngine as dxf
 from random import random, randrange, randint
 
-N = 200
+N = 100
 iterations = 40
 
-shape="star"
-#shape="hexagon"
+#shape="star"
+shape="hexagon"
 
-scale = 4
+scale = 3
 offset = 400
 
 r3 = 3**0.5
@@ -191,21 +191,23 @@ for i in range(64):
   # .   .  o   .  o   .  o   .  o   .  o   o  o   o
   #  . .    . .    . .    . .    . .    . .    . .
   #   0      1      3      5      7      9      11
+  #   1      6      6      6      6      3       6
   #
   #  . o    o o    . o    o o    o .    o o    o o
   # o   o  o   o  o   .  o   .  o   o  o   o  o   o
   #  . .    . .    . o    . o    . o    . o    o o
   #   13     15     21     23     27     31     63
+  #    6      6      2      6      3      6      1
 
   # freezing probability
 
   r = {
        0:0.0,  13:0.1,
-       1:1.0,  15:0.0,
-       3:0.4,  21:0.1,
-       5:0.1,  23:0.4,
-       7:0.0,  27:0.7,
-       9:0.6,  31:0.9,
+       1:1.0,  15:1.0,
+       3:0.1,  21:1.0,
+       5:0.8,  23:0.3,
+       7:0.0,  27:0.4,
+       9:0.8,  31:0.9,
       11:0.1,  63:0.4
       }
   ii = i
@@ -214,12 +216,12 @@ for i in range(64):
     ii = (ii>>1) + ((ii&1)<<5)
   # not-thawing probabilities
   r = {
-       0:1.0,  13:1.0,
-       1:1.0,  15:0.7,
-       3:0.3,  21:0.5,
-       5:0.4,  23:0.7,
-       7:0.2,  27:0.8,
-       9:1.0,  31:0.3,
+       0:0.7,  13:1.0,
+       1:1.0,  15:0.9,
+       3:0.2,  21:0.2,
+       5:0.8,  23:0.6,
+       7:0.2,  27:0.5,
+       9:1.0,  31:0.6,
       11:1.0,  63:0.7
       }
   for _ in range(6):
@@ -230,7 +232,7 @@ for _ in range(iterations):
   for i, r in enumerate(cells[:-1]):
     for j, c in enumerate(r[:-1]):
       next_cells[i][j] = 0
-      if shape=="hexagon" and i+j>=N/4: continue
+      if shape=="hexagon" and i+j>=N/2: continue
       if random() < rules[cells[i][j]][get_neighbor_state(i,j)]:
         next_cells[i][j] = 1
   cells, next_cells = next_cells, cells
