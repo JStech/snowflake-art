@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from tkinter import *
+from dxfwrite import DXFEngine as dxf
 from random import random, randrange, randint
 
 N = 200
@@ -92,7 +93,12 @@ def draw_border(i1, j1, i2, j2):
 
 master = Tk()
 
+def callback(event):
+    print("clicked at", event.x, event.y)
+    master.quit()
+
 w = Canvas(master, width=2*offset, height=2*offset)
+w.bind("<Button-1>", callback)
 w.pack()
 
 cells = [[0]*N for _ in range(N)]
@@ -224,25 +230,58 @@ for (i, j) in flake:
   full_flake.add((i, -i-j))
   full_flake.add((-i, i+j))
 
-flake_border = set()
+flake_edges = set()
 for (i, j) in full_flake:
   for (ni, nj) in ((i, j+1), (i, j-1), (i+1, j), (i-1, j), (i+1, j-1),
       (i-1, j+1)):
     if (ni, nj) in full_flake: continue
     if (ni - i, nj - j) == (0, 1):
-      flake_border.add(((i, j), (i, j)))
+      flake_edges.add(((i, j), (i, j)))
     if (ni - i, nj - j) == (1, 0):
-      flake_border.add(((i+1, j-1), (i, j)))
+      flake_edges.add(((i+1, j-1), (i, j)))
     if (ni - i, nj - j) == (1, -1):
-      flake_border.add(((i+1, j-1), (i, j-1)))
+      flake_edges.add(((i+1, j-1), (i, j-1)))
     if (ni - i, nj - j) == (0, -1):
-      flake_border.add(((i, j-1), (i, j-1)))
+      flake_edges.add(((i, j-1), (i, j-1)))
     if (ni - i, nj - j) == (-1, 0):
-      flake_border.add(((i, j-1), (i-1, j)))
+      flake_edges.add(((i, j-1), (i-1, j)))
     if (ni - i, nj - j) == (-1, 1):
-      flake_border.add(((i, j), (i-1, j)))
+      flake_edges.add(((i, j), (i-1, j)))
 
-for edge in flake_border:
+for edge in flake_edges:
   draw_edge(edge)
-
 mainloop()
+
+flake_borders = [[]]
+while len(flake_edges) > 0:
+  if flake_borders[-1] == []:
+    start = flake_edges.pop()
+    flake_borders[-1].append((start[0][0], start[0][1], 0))
+    flake_borders[-1].append((start[1][0], start[1][1], 1))
+    state = 1
+
+  next_edge = tuple(filter(lambda x: x[state] == flake_borders[-1][-1][:2], flake_edges))
+  if len(next_edge) != 1:
+    print("Wrong number of edges:", next_edge, len(flake_border))
+    print(flake_edges)
+    print(flake_border)
+    print(next_edge)
+    exit(1)
+  next_edge = next_edge[0]
+  flake_borders[-1].append((next_edge[1-state][0], next_edge[1-state][1], 1-state))
+  flake_edges.remove(next_edge)
+  state = 1-state
+  if flake_borders[-1][-1] == flake_borders[-1][0]:
+    flake_borders.append([])
+
+#with open("t", "w") as outf:
+#  print(flake_borders, file=outf)
+
+drawing = dxf.drawing("snowflake.dxf")
+for flake_border in flake_borders[:-1]:
+  points = []
+  for p in flake_border:
+    points.append((t(p[1] + p[0]/2 + 1/2), t((p[0]-(1-2*p[2])/3)*r3/2)))
+    state = -state
+  drawing.add(dxf.polyline(points))
+drawing.save()
