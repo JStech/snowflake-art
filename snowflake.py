@@ -23,6 +23,7 @@ r3 = 3**0.5
 # 00  01  02  03  04  05
 
 def neighbors(i, j):
+  """iterate over neighbors (addresses) of (i, j)"""
   if i>j: return
   if (i, j) == (0, 0):
     for _ in range(6): yield (0, 1)
@@ -54,22 +55,20 @@ def neighbors(i, j):
   if i <= j+1:   yield (i, j+1)
 
 def t(x):
+  """scale x for tkinter display"""
   return scale*x + offset
 
-def cube_to_hex(c):
-  return (c[0], c[1])
-
-def hex_to_cube(h):
-  return (h[0], h[1], -h[1]-h[0])
-
 def draw_point(x, y):
+  """Draw a small blue circle at location (x, y)"""
   w.create_oval(t(x)+scale/3, t(-y)+scale/3, t(x)-scale/3, t(-y)-scale/3,
       outline="#aaaaff", fill="#aaaaff")
 
 def draw_cell(i, j):
+  """Translate cell (i, j) to (x, y) position, and draw blue circle"""
   draw_point(j + i/2, i*r3/2)
 
 def draw_cells(i, j):
+  """Draw cell (i, j) in all 12 symmetric locations"""
   if i>j: return
   for (ii, jj) in ((i, j), (j, i), (-i-j, i)):
     for xm in (-1, 1):
@@ -77,11 +76,13 @@ def draw_cells(i, j):
         draw_point(xm*(jj+ii/2), ym*ii*r3/2)
 
 def draw_edge(edge):
+  """Draw the edge from vertex (i1, i2, 0) to vertex (i2, j2, 1)"""
   ((i1, j1), (i2, j2)) = edge
   w.create_line(t(j1 + i1/2 + 1/2), t((i1-1/3)*r3/2),
       t(j2 + i2/2 + 1/2), t((i2+1/3)*r3/2))
 
 def draw_border(i1, j1, i2, j2):
+  """Draw line separating cell (i1, j1) from cell (i2, j2)"""
   for (ii1, jj1, ii2, jj2) in ((i1, j1, i2, j2), (j1, i1, j2, i2), (-i1-j1, i1, -i2-j2, i2)):
     for xm in (-1, 1):
       for ym in (-1, 1):
@@ -91,9 +92,8 @@ def draw_border(i1, j1, i2, j2):
             t((x1+x2+(y2-y1)/r3)/2), t((y1+y2+(x1-x2)/r3)/2),
             t((x1+x2-(y2-y1)/r3)/2), t((y1+y2-(x1-x2)/r3)/2))
 
-master = Tk()
-
 def save_dxf():
+  """Write current flake stored in flake_edges to snowflake.dxf"""
   flake_borders = [[]]
   while len(flake_edges) > 0:
     if flake_borders[-1] == []:
@@ -125,26 +125,32 @@ def save_dxf():
     drawing.add(dxf.polyline(points))
   drawing.save()
 
-def keypress(event):
-  if event.char=='s':
-    save_dxf()
-    master.quit()
-  if event.char=='q':
-    master.quit()
+def tk_init():
+  global w
+  def keypress(event):
+    if event.char=='s':
+      save_dxf()
+      master.quit()
+    if event.char=='q':
+      master.quit()
 
-def click(event):
-  w.focus_set()
+  def click(event):
+    w.focus_set()
 
-w = Canvas(master, width=2*offset, height=2*offset)
-w.bind("<Button-1>", click)
-w.bind("<Key>", keypress)
-w.pack()
+  master = Tk()
+  w = Canvas(master, width=2*offset, height=2*offset)
+  w.bind("<Button-1>", click)
+  w.bind("<Key>", keypress)
+  w.pack()
+
+tk_init()
 
 cells = [[0]*N for _ in range(N)]
 next_cells = [[0]*N for _ in range(N)]
 cells[0][0] = 1
 
 def get_neighbor_state(i, j):
+  """Return integer containing a neighbor's value in each bit level"""
   s = 0
   if (i, j) == (0, 0):
     return [0, 63][cells[0][1]]
@@ -161,6 +167,7 @@ def get_neighbor_state(i, j):
           4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
 
 def grow(i, j):
+  """Execute one cycle of growth"""
   if cells[i][j] == 0: return ({}, 0)
   flake = set()
   boundary = {(i, j)}
@@ -182,51 +189,55 @@ def grow(i, j):
 
   return (flake, size)
 
-# (current_state, sum_neighbor_states): prob
-rules = [[None]*64, [None]*64]
-for i in range(64):
-  if rules[0][i] is not None: continue
+def create_rules():
+  """Generate freeze/thaw rules"""
+  global rules
+  rules = [[None]*64, [None]*64] # (current_state, sum_neighbor_states): prob
+  for i in range(64):
+    if rules[0][i] is not None: continue
 
-  #  . .    . .    o .    . o    o o    . .    o .
-  # .   .  o   .  o   .  o   .  o   .  o   o  o   o
-  #  . .    . .    . .    . .    . .    . .    . .
-  #   0      1      3      5      7      9      11
-  #   1      6      6      6      6      3       6
-  #
-  #  . o    o o    . o    o o    o .    o o    o o
-  # o   o  o   o  o   .  o   .  o   o  o   o  o   o
-  #  . .    . .    . o    . o    . o    . o    o o
-  #   13     15     21     23     27     31     63
-  #    6      6      2      6      3      6      1
+    #  . .    . .    o .    . o    o o    . .    o .
+    # .   .  o   .  o   .  o   .  o   .  o   o  o   o
+    #  . .    . .    . .    . .    . .    . .    . .
+    #   0      1      3      5      7      9      11
+    #   1      6      6      6      6      3       6
+    #
+    #  . o    o o    . o    o o    o .    o o    o o
+    # o   o  o   o  o   .  o   .  o   o  o   o  o   o
+    #  . .    . .    . o    . o    . o    . o    o o
+    #   13     15     21     23     27     31     63
+    #    6      6      2      6      3      6      1
 
-  # freezing probability
+    # freezing probability
 
-  r = {
-       0:0.0,  13:0.1,
-       1:1.0,  15:1.0,
-       3:0.1,  21:1.0,
-       5:0.8,  23:0.3,
-       7:0.0,  27:0.4,
-       9:0.8,  31:0.9,
-      11:0.1,  63:0.4
-      }
-  ii = i
-  for _ in range(6):
-    rules[0][ii] = r[i]
-    ii = (ii>>1) + ((ii&1)<<5)
-  # not-thawing probabilities
-  r = {
-       0:0.7,  13:1.0,
-       1:1.0,  15:0.9,
-       3:0.2,  21:0.2,
-       5:0.8,  23:0.6,
-       7:0.2,  27:0.5,
-       9:1.0,  31:0.6,
-      11:1.0,  63:0.7
-      }
-  for _ in range(6):
-    rules[1][ii] = r[i]
-    ii = (ii>>1) + ((ii&1)<<5)
+    r = {
+         0:0.0,  13:0.1,
+         1:1.0,  15:1.0,
+         3:0.1,  21:1.0,
+         5:0.8,  23:0.3,
+         7:0.0,  27:0.4,
+         9:0.8,  31:0.9,
+        11:0.1,  63:0.4
+        }
+    ii = i
+    for _ in range(6):
+      rules[0][ii] = r[i]
+      ii = (ii>>1) + ((ii&1)<<5)
+    # not-thawing probabilities
+    r = {
+         0:0.7,  13:1.0,
+         1:1.0,  15:0.9,
+         3:0.2,  21:0.2,
+         5:0.8,  23:0.6,
+         7:0.2,  27:0.5,
+         9:1.0,  31:0.6,
+        11:1.0,  63:0.7
+        }
+    for _ in range(6):
+      rules[1][ii] = r[i]
+      ii = (ii>>1) + ((ii&1)<<5)
+
+create_rules()
 
 for _ in range(iterations):
   for i, r in enumerate(cells[:-1]):
