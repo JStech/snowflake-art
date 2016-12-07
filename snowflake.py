@@ -2,18 +2,18 @@
 from tkinter import *
 from dxfwrite import DXFEngine as dxf
 from random import random, randrange, randint
+import os
 
-N = 100
+N = 60
 iterations = 40
 
-#shape="star"
-shape="hexagon"
+shape="star"
+#shape="hexagon"
 
-scale = 3
+scale = 5
 offset = 400
 
 r3 = 3**0.5
-
 
 #           05  15  25  35  45  55
 #         04  14  24  34  44  45
@@ -116,7 +116,12 @@ def save_dxf():
     if flake_borders[-1][-1] == flake_borders[-1][0]:
       flake_borders.append([])
 
-  drawing = dxf.drawing("snowflake.dxf")
+  for i in range(1, 100):
+    if not os.path.exists("flake{:02d}.dxf".format(i)):
+      filename = "flake{:02d}.dxf".format(i)
+      break
+
+  drawing = dxf.drawing(filename)
   for flake_border in flake_borders[:-1]:
     points = []
     for p in flake_border:
@@ -127,10 +132,20 @@ def save_dxf():
 
 def tk_init():
   global w
+  global cells
+  global next_cells
   def keypress(event):
+    if event.char==' ':
+      growth_iter()
+      draw_flake()
+    if event.char=='r':
+      for i in range(N):
+        for j in range(N):
+          cells[i][j] = 0;
+      cells[0][0] = 1
+      draw_flake()
     if event.char=='s':
       save_dxf()
-      master.quit()
     if event.char=='q':
       master.quit()
 
@@ -145,11 +160,7 @@ def tk_init():
 
 tk_init()
 
-cells = [[0]*N for _ in range(N)]
-next_cells = [[0]*N for _ in range(N)]
-cells[0][0] = 1
-
-def get_neighbor_state(i, j):
+def get_neighbor_state(cells, i, j):
   """Return integer containing a neighbor's value in each bit level"""
   s = 0
   if (i, j) == (0, 0):
@@ -166,7 +177,7 @@ def get_neighbor_state(i, j):
   return (32*cells[i][j-1] + 16*cells[i-1][j-1] + 8*cells[i-1][j] +
           4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
 
-def grow(i, j):
+def grow(cells, i, j):
   """Execute one cycle of growth"""
   if cells[i][j] == 0: return ({}, 0)
   flake = set()
@@ -212,12 +223,12 @@ def create_rules():
 
     r = {
          0:0.0,  13:0.1,
-         1:1.0,  15:1.0,
-         3:0.1,  21:1.0,
-         5:0.8,  23:0.3,
-         7:0.0,  27:0.4,
-         9:0.8,  31:0.9,
-        11:0.1,  63:0.4
+         1:1.0,  15:0.0,
+         3:0.2,  21:0.1,
+         5:0.1,  23:0.1,
+         7:0.0,  27:1.0,
+         9:0.2,  31:1.0,
+        11:0.1,  63:0.0
         }
     ii = i
     for _ in range(6):
@@ -225,81 +236,94 @@ def create_rules():
       ii = (ii>>1) + ((ii&1)<<5)
     # not-thawing probabilities
     r = {
-         0:0.7,  13:1.0,
-         1:1.0,  15:0.9,
-         3:0.2,  21:0.2,
-         5:0.8,  23:0.6,
-         7:0.2,  27:0.5,
-         9:1.0,  31:0.6,
-        11:1.0,  63:0.7
+         0:1-0.0,  13:1-0.0,
+         1:1-0.0,  15:1-0.3,
+         3:1-0.7,  21:1-0.5,
+         5:1-0.5,  23:1-0.0,
+         7:1-0.5,  27:1-0.1,
+         9:1-0.0,  31:1-0.2,
+        11:1-0.0,  63:1-0.3
         }
     for _ in range(6):
       rules[1][ii] = r[i]
       ii = (ii>>1) + ((ii&1)<<5)
 
-create_rules()
+def draw_flake():
+  w.delete("all")
+  # find largest connected component
+  max_size = 0
+  max_flake = None
+  total_c = sum(map(sum, cells))
+  while max_size < total_c:
+    j = randrange(N)
+    i = randint(0,j)
+    (flake, size) = grow(cells, i, j)
+    if size > max_size:
+      max_flake = flake
+      max_size = size
 
-for _ in range(iterations):
+  full_flake = set()
+  for (i, j) in flake:
+    draw_cells(i, j)
+    full_flake.add((i, j))
+    full_flake.add((-i, -j))
+    full_flake.add((-j-i, i))
+    full_flake.add((j+i, -i))
+    full_flake.add((j, -j-i))
+    full_flake.add((-j, j+i))
+    full_flake.add((j, i))
+    full_flake.add((-j, -i))
+    full_flake.add((-i-j, j))
+    full_flake.add((i+j, -j))
+    full_flake.add((i, -i-j))
+    full_flake.add((-i, i+j))
+
+  global flake_edges
+  flake_edges = set()
+  for (i, j) in full_flake:
+    for (ni, nj) in ((i, j+1), (i, j-1), (i+1, j), (i-1, j), (i+1, j-1),
+        (i-1, j+1)):
+      if (ni, nj) in full_flake: continue
+      if (ni - i, nj - j) == (0, 1):
+        flake_edges.add(((i, j), (i, j)))
+      if (ni - i, nj - j) == (1, 0):
+        flake_edges.add(((i+1, j-1), (i, j)))
+      if (ni - i, nj - j) == (1, -1):
+        flake_edges.add(((i+1, j-1), (i, j-1)))
+      if (ni - i, nj - j) == (0, -1):
+        flake_edges.add(((i, j-1), (i, j-1)))
+      if (ni - i, nj - j) == (-1, 0):
+        flake_edges.add(((i, j-1), (i-1, j)))
+      if (ni - i, nj - j) == (-1, 1):
+        flake_edges.add(((i, j), (i-1, j)))
+
+  for edge in flake_edges:
+    draw_edge(edge)
+
+def growth_iter():
+  global cells
+  global next_cells
+  # grow snowflake
   for i, r in enumerate(cells[:-1]):
     for j, c in enumerate(r[:-1]):
       next_cells[i][j] = 0
       if shape=="hexagon" and i+j>=N/2: continue
-      if random() < rules[cells[i][j]][get_neighbor_state(i,j)]:
+      if random() < rules[cells[i][j]][get_neighbor_state(cells, i,j)]:
         next_cells[i][j] = 1
   cells, next_cells = next_cells, cells
 
-#for i, r in enumerate(cells):
-#  for j, c in enumerate(r):
-#    for ni, nj in neighbors(i, j):
-#      if c:
-#        if not cells[ni][nj]:
-#          draw_border(i, j, ni, nj)
+def main():
+  global cells
+  global next_cells
 
-max_size = 0
-max_flake = None
-total_c = sum(map(sum, cells))
-while max_size < total_c:
-  j = randrange(N)
-  i = randint(0,j)
-  (flake, size) = grow(i, j)
-  if size > max_size:
-    max_flake = flake
-    max_size = size
+  cells = [[0]*N for _ in range(N)]
+  next_cells = [[0]*N for _ in range(N)]
+  cells[0][0] = 1
 
-full_flake = set()
-for (i, j) in flake:
-  draw_cells(i, j)
-  full_flake.add((i, j))
-  full_flake.add((-i, -j))
-  full_flake.add((-j-i, i))
-  full_flake.add((j+i, -i))
-  full_flake.add((j, -j-i))
-  full_flake.add((-j, j+i))
-  full_flake.add((j, i))
-  full_flake.add((-j, -i))
-  full_flake.add((-i-j, j))
-  full_flake.add((i+j, -j))
-  full_flake.add((i, -i-j))
-  full_flake.add((-i, i+j))
+  create_rules()
 
-flake_edges = set()
-for (i, j) in full_flake:
-  for (ni, nj) in ((i, j+1), (i, j-1), (i+1, j), (i-1, j), (i+1, j-1),
-      (i-1, j+1)):
-    if (ni, nj) in full_flake: continue
-    if (ni - i, nj - j) == (0, 1):
-      flake_edges.add(((i, j), (i, j)))
-    if (ni - i, nj - j) == (1, 0):
-      flake_edges.add(((i+1, j-1), (i, j)))
-    if (ni - i, nj - j) == (1, -1):
-      flake_edges.add(((i+1, j-1), (i, j-1)))
-    if (ni - i, nj - j) == (0, -1):
-      flake_edges.add(((i, j-1), (i, j-1)))
-    if (ni - i, nj - j) == (-1, 0):
-      flake_edges.add(((i, j-1), (i-1, j)))
-    if (ni - i, nj - j) == (-1, 1):
-      flake_edges.add(((i, j), (i-1, j)))
+  draw_flake()
 
-for edge in flake_edges:
-  draw_edge(edge)
-mainloop()
+  mainloop()
+
+main()
