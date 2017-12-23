@@ -4,8 +4,9 @@ from dxfwrite import DXFEngine as dxf
 from random import random, randrange, randint
 import os
 
-N = 60
+N = 30
 iterations = 40
+dxf_scale = 1/12
 
 shape="star"
 #shape="hexagon"
@@ -153,10 +154,11 @@ def save_dxf():
   for flake_border in flake_borders[:-1]:
     points = []
     for p in flake_border:
-      points.append((t(p[1] + p[0]/2 + 1/2), t((p[0]-(1-2*p[2])/3)*r3/2)))
+      points.append((dxf_scale*t(p[1] + p[0]/2 + 1/2), dxf_scale*t((p[0]-(1-2*p[2])/3)*r3/2)))
       state = -state
     drawing.add(dxf.polyline(points))
   drawing.save()
+  print("Wrote", filename)
 
 def tk_init():
   global w
@@ -331,6 +333,7 @@ def main():
 
   draw_flake()
 
+  print("Press SPACE to grow flake, 's' to save to .dxf file, and 'r' to reset")
   mainloop()
 
 main()
