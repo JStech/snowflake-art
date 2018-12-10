@@ -83,6 +83,7 @@ def neighbors(i, j):
   if i-1 <= j+1: yield (i-1, j+1)
   if i <= j+1:   yield (i, j+1)
 
+# drawing functions
 def t(x):
   """scale x for tkinter display"""
   return scale*x + offset
@@ -121,6 +122,7 @@ def draw_border(i1, j1, i2, j2):
             t((x1+x2+(y2-y1)/r3)/2), t((y1+y2+(x1-x2)/r3)/2),
             t((x1+x2-(y2-y1)/r3)/2), t((y1+y2-(x1-x2)/r3)/2))
 
+# output
 def save_dxf():
   """Write current flake stored in flake_edges to snowflake.dxf"""
   flake_borders = [[]]
@@ -151,12 +153,15 @@ def save_dxf():
       break
 
   drawing = dxf.drawing(filename)
+  block = dxf.block(name='flake')
   for flake_border in flake_borders[:-1]:
     points = []
     for p in flake_border:
       points.append((dxf_scale*t(p[1] + p[0]/2 + 1/2), dxf_scale*t((p[0]-(1-2*p[2])/3)*r3/2)))
       state = -state
-    drawing.add(dxf.polyline(points))
+    block.add(dxf.polyline(points))
+  drawing.blocks.add(block)
+  drawing.add(dxf.insert('flake', insert=(0, 0)))
   drawing.save()
   print("Wrote", filename)
 
@@ -208,7 +213,7 @@ def get_neighbor_state(cells, i, j):
           4*cells[i][j+1] + 2*cells[i-1][j+1] + cells[i-1][j])
 
 def grow(cells, i, j):
-  """Execute one cycle of growth"""
+  """Find connected component of snowflake"""
   if cells[i][j] == 0: return ({}, 0)
   flake = set()
   boundary = {(i, j)}
@@ -310,6 +315,7 @@ def draw_flake():
     draw_edge(edge)
 
 def growth_iter():
+  """Grow the snowflake"""
   global cells
   global next_cells
   # grow snowflake
